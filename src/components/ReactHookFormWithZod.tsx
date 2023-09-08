@@ -1,19 +1,60 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import type { FieldValues } from "react-hook-form";
+import { z } from "zod";
 
-const ReactHookForm = () => {
+const signUpSchema = z
+  .object({
+    email: z
+      .string()
+      .nonempty("email is required")
+      .email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  // we can use zod to validate using refine method
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"], // it will show error in confirmPassword field
+  });
+
+type ISignUpSchema = z.infer<typeof signUpSchema>; // create type from schema
+
+const ReactHookFormWithZod = () => {
   const [show, setShow] = useState(false);
   const [show1, setShow1] = useState(false);
-  const { register, handleSubmit, formState, reset, getValues } = useForm();
+  const { register, handleSubmit, formState, reset, setError } =
+    useForm<ISignUpSchema>({
+      resolver: zodResolver(signUpSchema), //tell which schema to resolve
+    });
   const { errors, isSubmitting } = formState;
 
-  const onSubmit = async (data: FieldValues) => {
-    // (data:FieldValues) type is -> {[x:string] : any} //we would need zod for more typesafety
+  const onSubmit = async (data: ISignUpSchema) => {
     console.log(data);
     //-------send data to server----------//
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    //------
+    /* 
+    * we can use setError to show error in any field
+    const res = await fetch(...)
+    if(!res.ok){
+    respose status is not 2xx
+    alert("form submission failed")
+    return;
+    }
+    if(res.errors){
+    const errors = res.errors
+    if(errors.email){
+        setError("email",{message:errors.email})
+    }
+    else if(errors.password){
+        setError("password",{message:errors.password})
+    }
+    else{
+        alert("form submission failed")
+    }
+}
+    */
+    //---------------------
     reset(); // clear form
   };
   return (
@@ -26,14 +67,8 @@ const ReactHookForm = () => {
       </label>
       <div className="">
         <input
-          {...register("email", {
-            required: "Email is required",
-            pattern: {
-              value: /\S+@\S+\.\S+/,
-              message: "invaid email format",
-            },
-          })}
-          type="email"
+          {...register("email")}
+          type="text"
           placeholder="email"
           className="rounded border px-4 py-2"
         />
@@ -49,17 +84,11 @@ const ReactHookForm = () => {
       </label>
       <div className="relative ">
         <input
-          {...register("password", {
-            required: "Password is required",
-            minLength: {
-              value: 8,
-              message: "Password must be at least 8 characters",
-            },
-          })}
+          {...register("password")}
           type={show ? "text" : "password"}
           id="password"
           placeholder="password"
-          className="block  rounded border py-2 pl-2 pr-12"
+          className=" block rounded border py-2 pl-2 pr-12"
         ></input>
         <p
           className="absolute  right-2 top-0 block cursor-pointer select-none py-2 "
@@ -79,15 +108,7 @@ const ReactHookForm = () => {
       </label>
       <div className="relative">
         <input
-          {...register("confirmPassword", {
-            required: "Confirm Password is required",
-            validate: (value) => {
-              return (
-                // getValues from "password" input
-                value === getValues("password") || "Passwords do not match"
-              );
-            },
-          })}
+          {...register("confirmPassword")}
           id="confirmPassword"
           type={show1 ? "text" : "password"}
           placeholder="confirm password"
@@ -118,4 +139,4 @@ const ReactHookForm = () => {
   );
 };
 
-export default ReactHookForm;
+export default ReactHookFormWithZod;
